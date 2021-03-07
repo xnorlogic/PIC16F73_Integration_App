@@ -63,12 +63,22 @@
 
 #include "lcd.h"
 
+/*Global VAriables*/
+U16 tick_count = 0;
+U16 Duty_Cycle = 0;
+char *STRING = "DC -> ";
+/*----------------*/
+
 void Setup(void);
 void Loop(void);
 
 void PORT_setup(U8 P_A, U8 P_B, U8 P_C);
 void PORT_A_setup(U8 configSelect);
+
 void PWM_Config(void);
+void TIMER_0_Config(void);
+void Interrupts_Config(void);
+
 void on_board_LED_ON(void);
 void on_board_LED_OFF(void);
 
@@ -80,19 +90,25 @@ void mydelay_ms(U16 cycles);
 void mydelay_sec(U16 cycles);
 */
 
-U16 Duty_Cycle = 0;
-char *STRING = "DC -> ";
-
 void main(void) {
+    
+    static U8 buffer[2];
     
     /*Setup function call*/
     Setup();
     
-    LCD_Reset(STRING,LCD_CURSOR_1);
-   
+    LCD_Reset("",LCD_CURSOR_1);
+    
     /*Main loop*/
     while(1){ 
-        Loop();
+        
+        utoa(buffer,tick_count,10);
+        Lcd4_Set_Cursor (LCD_CURSOR_2, 0);
+        Lcd4_Write_String(buffer);
+        
+        Duty_Cycle_Write(tick_count,LCD_CURSOR_1);
+        
+        /*Loop();*/
     }
     
 }
@@ -138,13 +154,29 @@ void PWM_Config(void){
     T2CON   = 0x04;
 }
 
+void TIMER_0_Config(void)
+{
+    /*Test with Prescaler value = 1:2 -> 000*/
+    OPTION_REG = 0xC0;
+}
+
+void Interrupts_Config(void)
+{
+    INTCON = 0xE0;
+}
+
 void Setup(void){
     /*Port A Analog/Digital configuration*/
     PORT_A_setup(ADCON1_CONFIG_6);
     /*Port assignment configuration*/
     PORT_setup(PORTA_CONFIG,PORTB_CONFIG,PORTC_CONFIG);
+    
     /*Configure PWM*/
     PWM_Config();
+    /*Interrupts*/
+    Interrupts_Config();
+    /*TIMER 0*/
+    TIMER_0_Config();
     
     Lcd4_Init();
     Lcd4_Clear();
@@ -191,4 +223,24 @@ void LCD_Reset(char *STRING,U8 Cursor_Location)
    Lcd4_Clear();
    Lcd4_Set_Cursor (Cursor_Location, 0);
    Lcd4_Write_String(STRING); 
+}
+
+void __interrupt(high_priority) tcInt(void)
+{
+    /*Any timer 0 interrupts*/
+    if (TMR0IE && TMR0IF) 
+    { 
+        TMR0IF=0;
+        
+        if(tick_count<255)
+        {
+            ++tick_count;
+        }
+        else
+        {
+            tick_count = 0;
+        }
+    }
+
+    return;
 }
