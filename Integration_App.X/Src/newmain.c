@@ -49,7 +49,7 @@
 
 /*LCD IO*/
 #define RS RB5
-#define EN RC1
+#define EN RC7
 
 #define D4 RB1
 #define D5 RB2
