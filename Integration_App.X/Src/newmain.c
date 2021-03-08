@@ -85,11 +85,6 @@ void on_board_LED_OFF(void);
 void LCD_Reset(char *STRING,U8 Cursor_Location);
 void Duty_Cycle_Write(U16 Duty_Cycle, U8 Cursor_Location);
 
-/*
-void mydelay_ms(U16 cycles);
-void mydelay_sec(U16 cycles);
-*/
-
 void main(void) {
     
     static U8 buffer[2];
@@ -181,24 +176,6 @@ void Setup(void){
     Lcd4_Init();
     Lcd4_Clear();
 }
-
-/*
-void mydelay_ms(U16 cycles) {
-    U16 i;
-
-    for (i = 1; i <= cycles; i++) {
-        __delay_ms(1);
-    }
-}
-
-void mydelay_sec(U16 cycles) {
-    U16 i;
-
-    for (i = 1; i <= cycles; i++) {
-        mydelay_ms(1000);
-    }
-}
- * */
 
 void on_board_LED_ON(void){
     RC0 = 1;
