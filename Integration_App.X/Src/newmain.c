@@ -52,14 +52,14 @@
 
 /*LCD IO*/
 #define RS RB5
-#define EN RC7
+#define EN RA0
 #define D4 RB1
 #define D5 RB2
 #define D6 RB3
 #define D7 RB4
 
 /*EEPROM IO*/
-#define CS RC6
+#define CS RA1
 
 /*EEPROM Instructions*/
 #define EEPROM_WRITE_ENABLE 0x06
