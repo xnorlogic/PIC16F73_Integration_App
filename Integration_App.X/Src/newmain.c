@@ -72,14 +72,9 @@
 #include "lcd.h"
 
 /*Global VAriables------------------------------------------------------------*/
-U16 tick_count = 0;
-U16 write_counter = 0;
-U16 Duty_Cycle = 0;
-U16 external_interrupt_cnt = 0;
-char *STRING = "DC -> ";
+U16 external_interrupt_cnt;
 U16 address = 43690;
-U16 buffer[2];
-char  EEPROM_DATA;
+U16 EEPROM_DATA;
 /*----------------------------------------------------------------------------*/
 
 void Setup(void);
@@ -118,22 +113,30 @@ void main(void) {
     /*Setup function call*/
     Setup();
     
+    RB6 = 1;
+    RB7 = 1;
+    
     /*Read the EEPROM and initialize the counter*/
     EEPROM_DATA = EEPROM_25LC1024_READ(address);
-    write_counter = EEPROM_DATA;
+    external_interrupt_cnt = EEPROM_DATA;
     
     /*Initial LCD MEssage*/
     LCD_Reset("READY",LCD_CURSOR_1);
     __delay_ms(1000);
     LCD_Reset("",LCD_CURSOR_1);
     
+    RB6 = 0;
+    RB7 = 0;
+    
     /*Main loop*/
-    while(1){     
+    while(1){ 
         Loop();
     }
 }
 
-void Loop(void){      
+void Loop(void){ 
+    static U16 buffer[2];
+    RB7 = 0;
     /*Display the EEPROM data on the LCD*/
     utoa(buffer,EEPROM_DATA,10);
     Lcd4_Set_Cursor (LCD_CURSOR_1, 0);
@@ -191,7 +194,7 @@ void PWM_Config(void){
 
 void TIMER_0_Config(void)
 {
-    nRBPU  = 1;
+    nRBPU  = 0;
     INTEDG = 1;
     T0CS   = 0;
     T0SE   = 0;
@@ -331,6 +334,16 @@ void on_board_LED_OFF(void){
 
 void TIMER_0_TASK(void)
 {
+    static U16 tick_count = 0;
+    /*increment the tick count for the TIMER 0 interrupt*/
+    if(tick_count<255)
+    {
+        ++tick_count;
+    }
+    else
+    {
+        tick_count = 0;
+    }
     /*write the TIMER 0 interrupt counter to the PWM */
     CCPR1L = (U8)tick_count;
 }
@@ -343,9 +356,19 @@ void TIMER_1_TASK(void)
 
 void EXTERNAL_INTERRUPT_TASK(void)
 {
+    RB7 = 1;
+    /*increment counter for external interrupt*/
+    if(external_interrupt_cnt<255)
+    {
+        ++external_interrupt_cnt;
+    }
+    else
+    {
+        external_interrupt_cnt = 0;
+    }
     /*Write the new counter to the EEPROM*/
     EEPROM_25LC1024_WRITE_EN();
-    EEPROM_25LC1024_WRITE(address,(U8)write_counter);
+    EEPROM_25LC1024_WRITE(address,(U8)external_interrupt_cnt);
 }
 
 void __interrupt(high_priority) tcInt(void)
@@ -355,16 +378,6 @@ void __interrupt(high_priority) tcInt(void)
     { 
         /*reset TIMER 0 interrupt flag*/
         TMR0IF=0;
-        
-        /*increment the tick count for the TIMER 0 interrupt*/
-        if(tick_count<255)
-        {
-            ++tick_count;
-        }
-        else
-        {
-            tick_count = 0;
-        }
         /*Task Call*/
         TIMER_0_TASK();
     }
@@ -383,16 +396,6 @@ void __interrupt(high_priority) tcInt(void)
     { 
         /*Reset the external interrupt flag*/
         INTF=0;
-        
-        /*increment counter for external interrupt*/
-        if(write_counter<255)
-        {
-            ++write_counter;
-        }
-        else
-        {
-            write_counter = 0;
-        }
         /*Task Call*/
         EXTERNAL_INTERRUPT_TASK();
     }
