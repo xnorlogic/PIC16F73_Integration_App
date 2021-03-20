@@ -26,8 +26,8 @@
 
 /*Port configuration*/
 /*PORT A*/
-/*0000 0000*/
-#define PORTA_CONFIG 0x00
+/*0000 0001*/
+#define PORTA_CONFIG 0x01
 /*PORT B*/
 /*0000 0001*/
 #define PORTB_CONFIG 0x01
@@ -52,14 +52,14 @@
 
 /*LCD IO*/
 #define RS RB5
-#define EN RA0
+#define EN RA5
 #define D4 RB1
 #define D5 RB2
 #define D6 RB3
 #define D7 RB4
 
 /*EEPROM IO*/
-#define CS RA1
+#define CS RA2
 
 /*EEPROM Instructions*/
 #define EEPROM_WRITE_ENABLE 0x06
@@ -74,6 +74,7 @@
 /*Global VAriables------------------------------------------------------------*/
 U16 external_interrupt_cnt;
 U16 address = 43690;
+U8  POT_1_Value;
 U16 EEPROM_DATA;
 /*----------------------------------------------------------------------------*/
 
@@ -81,13 +82,13 @@ void Setup(void);
 void Loop(void);
 
 void PORT_setup(U8 P_A, U8 P_B, U8 P_C);
-void PORT_A_setup(U8 configSelect);
 
 void PWM_Config(void);
 void TIMER_0_Config(void);
 void TIMER_1_Config(void);
 void Interrupts_Config(void);
 void SPI_Config(void);
+void ADC_Config(void);
 
 U8 SPI_transfer(U8 data);
 void EEPROM_25LC1024_WRITE_EN(void);
@@ -107,6 +108,8 @@ void TIMER_0_TASK(void);
 void TIMER_1_TASK(void);
 /*External interrupt at RB0*/
 void EXTERNAL_INTERRUPT_TASK(void);
+/*ADC interrupt*/
+void ADC_INTERRUPT_TASK(void);
 /*----------------------------------------------------------------------------*/
 
 void main(void) {
@@ -137,18 +140,24 @@ void main(void) {
 void Loop(void){ 
     static U16 buffer[2];
     RB7 = 0;
+    RB6 = 0;
+    GO_nDONE = 1;
     /*Display the EEPROM data on the LCD*/
     utoa(buffer,EEPROM_DATA,10);
     Lcd4_Set_Cursor (LCD_CURSOR_1, 0);
     Lcd4_Write_String(buffer);
+    /*Display the ADC data on the LCD*/
+    utoa(buffer,POT_1_Value,10);
+    Lcd4_Set_Cursor (LCD_CURSOR_2, 0);
+    Lcd4_Write_String(buffer);
 }
 
 void Setup(void){
-    /*Port A Analog/Digital configuration*/
-    PORT_A_setup(ADCON1_CONFIG_6);
     /*Port assignment configuration*/
     PORT_setup(PORTA_CONFIG,PORTB_CONFIG,PORTC_CONFIG);
     
+    /*ADC*/
+    ADC_Config();
     /*Configure PWM*/
     PWM_Config();
     /*Interrupts*/
@@ -166,22 +175,26 @@ void Setup(void){
 
 void PORT_setup(U8 P_A, U8 P_B, U8 P_C){
     STATUS = BANK_1;
-    
-    TRISA=P_A;
-    TRISB=P_B;
-    TRISC=P_C;
-    
+    TRISA = P_A;
+    TRISB = P_B;
+    TRISC = P_C;
     PORTA = P_A;
     PORTB = P_B;
     PORTC = P_C;
-    
     STATUS = BANK_0;
 }
 
-void PORT_A_setup(U8 configSelect){
+void ADC_Config(void){
     STATUS = BANK_1;
-    ADCON1 = configSelect;
+    ADCON1 = ADCON1_CONFIG_4;
     STATUS = BANK_0;  
+    ADON = 1;
+    GO_nDONE = 0;
+    CHS0 = 0;
+    CHS1 = 0;
+    CHS2 = 0;
+    ADCS0 = 0;
+    ADCS1 = 0;
 }
 
 void PWM_Config(void){
@@ -221,7 +234,7 @@ void Interrupts_Config(void)
     INTE   = 1;
     RBIE   = 0;
     /*PSPIE  = 0;*/ /*Only in 28 pin devices*/
-    ADIE   = 0;
+    ADIE   = 1;
     RCIE   = 0;
     TXIE   = 0;
     SSPIE  = 0;
@@ -371,6 +384,12 @@ void EXTERNAL_INTERRUPT_TASK(void)
     EEPROM_25LC1024_WRITE(address,(U8)external_interrupt_cnt);
 }
 
+void ADC_INTERRUPT_TASK(void)
+{
+    RB6 = 1;
+    POT_1_Value = ADRES;
+}
+
 void __interrupt(high_priority) tcInt(void)
 {
     /*timer 0 interrupts*/
@@ -389,6 +408,15 @@ void __interrupt(high_priority) tcInt(void)
         TMR1IF=0;
         /*Task Call*/
         TIMER_1_TASK();
+    }
+    
+    /*ADC interrupt*/
+    if (ADIE && ADIF) 
+    { 
+        /*Reset the external interrupt flag*/
+        ADIF=0;
+        /*Task Call*/
+        ADC_INTERRUPT_TASK();
     }
     
     /*External interrupt*/
