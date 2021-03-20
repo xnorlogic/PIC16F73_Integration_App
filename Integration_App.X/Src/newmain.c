@@ -200,8 +200,12 @@ void ADC_Config(void){
 void PWM_Config(void){
     /*Test at 50% duty cycle*/
     PR2     = 0xFF;
+    /*PWM 1*/
     CCPR1L  = 0x80;
     CCP1CON = 0x0C;
+    /*PWM 2*/
+    CCPR2L  = 0x80;
+    CCP2CON = 0x0C;
     T2CON   = 0x04;
 }
 
@@ -388,6 +392,7 @@ void ADC_INTERRUPT_TASK(void)
 {
     RB6 = 1;
     POT_1_Value = ADRES;
+    CCPR2L = POT_1_Value;
 }
 
 void __interrupt(high_priority) tcInt(void)
