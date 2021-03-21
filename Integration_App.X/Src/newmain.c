@@ -26,8 +26,8 @@
 
 /*Port configuration*/
 /*PORT A*/
-/*0000 0001*/
-#define PORTA_CONFIG 0x01
+/*0000 0011*/
+#define PORTA_CONFIG 0x03
 /*PORT B*/
 /*0000 0001*/
 #define PORTB_CONFIG 0x01
@@ -69,35 +69,41 @@
 #define LCD_CURSOR_1 1
 #define LCD_CURSOR_2 2
 
+#define MAX_ADC_CHANNELS 2
+
 #include "lcd.h"
 
 /*Global VAriables------------------------------------------------------------*/
 U16 external_interrupt_cnt;
 U16 address = 43690;
-U8  POT_1_Value;
 U16 EEPROM_DATA;
+U8  POT_1_Value;
+U8  POT_2_Value;
+U8  ADC_Channel_Selector;
 /*----------------------------------------------------------------------------*/
 
+/*Main application functions*/
 void Setup(void);
 void Loop(void);
-
-void PORT_setup(U8 P_A, U8 P_B, U8 P_C);
-
+/*Micro Configuration functions*/
+void PORT_Config(U8 P_A, U8 P_B, U8 P_C);
 void PWM_Config(void);
 void TIMER_0_Config(void);
 void TIMER_1_Config(void);
 void Interrupts_Config(void);
 void SPI_Config(void);
 void ADC_Config(void);
-
+/*SPI Functions*/
 U8 SPI_transfer(U8 data);
 void EEPROM_25LC1024_WRITE_EN(void);
 void EEPROM_25LC1024_WRITE(U16 address, U8 data);
 char EEPROM_25LC1024_READ(U16 address);
-
+/*ADC Functions*/
+void ADC_READ(U8 ADC_Configured_Channels);
+void ADC_Channel_READ(U8 ADC_Channel);
+/*Misc Functions*/
 void on_board_LED_ON(void);
 void on_board_LED_OFF(void);
-
 void LCD_Reset(char *STRING,U8 Cursor_Location);
 void Duty_Cycle_Write(U16 Duty_Cycle, U8 Cursor_Location);
 
@@ -139,23 +145,32 @@ void main(void) {
 
 void Loop(void){ 
     static U16 buffer[2];
+    
+    /*Reset the LED test indicators*/
     RB7 = 0;
     RB6 = 0;
-    GO_nDONE = 1;
+    
+    ADC_READ(MAX_ADC_CHANNELS);
+    
     /*Display the EEPROM data on the LCD*/
     utoa(buffer,EEPROM_DATA,10);
     Lcd4_Set_Cursor (LCD_CURSOR_1, 0);
     Lcd4_Write_String(buffer);
-    /*Display the ADC data on the LCD*/
+    
+    /*Display the ADC Channel 1 data on the LCD*/
     utoa(buffer,POT_1_Value,10);
     Lcd4_Set_Cursor (LCD_CURSOR_2, 0);
+    Lcd4_Write_String(buffer);
+    
+    /*Display the ADC Channel 2 data on the LCD*/
+    utoa(buffer,POT_2_Value,10);
+    Lcd4_Set_Cursor (LCD_CURSOR_2, 4);
     Lcd4_Write_String(buffer);
 }
 
 void Setup(void){
     /*Port assignment configuration*/
-    PORT_setup(PORTA_CONFIG,PORTB_CONFIG,PORTC_CONFIG);
-    
+    PORT_Config(PORTA_CONFIG,PORTB_CONFIG,PORTC_CONFIG);
     /*ADC*/
     ADC_Config();
     /*Configure PWM*/
@@ -168,12 +183,12 @@ void Setup(void){
     TIMER_1_Config();
     /*SPI Config*/
     SPI_Config();
-    
+    /*LCD Startup code*/
     Lcd4_Init();
     Lcd4_Clear();
 }
 
-void PORT_setup(U8 P_A, U8 P_B, U8 P_C){
+void PORT_Config(U8 P_A, U8 P_B, U8 P_C){
     STATUS = BANK_1;
     TRISA = P_A;
     TRISB = P_B;
@@ -341,12 +356,25 @@ void LCD_Reset(char *STRING,U8 Cursor_Location)
    Lcd4_Write_String(STRING); 
 }
 
-void on_board_LED_ON(void){
-    RC0 = 1;
+void ADC_READ(U8 ADC_Configured_Channels)
+{
+   static U8 ADC_Channel;
+   /*Sweep through the ADC configured channels*/
+   for(ADC_Channel = 0;ADC_Channel<ADC_Configured_Channels;ADC_Channel++)
+   {
+       ADC_Channel_Selector = ADC_Channel;
+       ADC_Channel_READ(ADC_Channel);
+   }
 }
 
-void on_board_LED_OFF(void){
-    RC0 = 0;
+void ADC_Channel_READ(U8 ADC_Channel)
+{
+    /*select the ADC channel*/
+    CHS0 = (ADC_Channel & 0x01);
+    CHS1 = (ADC_Channel & 0x02) >> 1; 
+    CHS2 = (ADC_Channel & 0x04) >> 2;
+    /*Initiate ADC conversion*/
+    GO_nDONE = 1;
 }
 
 void TIMER_0_TASK(void)
@@ -391,8 +419,39 @@ void EXTERNAL_INTERRUPT_TASK(void)
 void ADC_INTERRUPT_TASK(void)
 {
     RB6 = 1;
-    POT_1_Value = ADRES;
-    CCPR2L = POT_1_Value;
+    /*ADC Channel code selector*/
+    switch(ADC_Channel_Selector)
+    {
+        /*Code for channel 0 AN0*/
+        case 0: 
+            POT_2_Value = ADRES;
+            break;
+        /*Code for channel 1 AN1*/
+        case 1: 
+            POT_1_Value = ADRES;
+            CCPR2L = POT_1_Value;
+            break;
+        /*Code for channel 2 AN2*/
+        case 2: 
+            break;
+        /*Code for channel 3 AN3*/
+        case 3: 
+            break;
+        /*Code for channel 4 AN4*/
+        case 4:
+            break;
+        /*Default*/
+        default:
+            break;
+    }
+}
+
+void on_board_LED_ON(void){
+    RC0 = 1;
+}
+
+void on_board_LED_OFF(void){
+    RC0 = 0;
 }
 
 void __interrupt(high_priority) tcInt(void)
