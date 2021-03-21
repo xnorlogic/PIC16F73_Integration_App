@@ -101,6 +101,11 @@ char EEPROM_25LC1024_READ(U16 address);
 /*ADC Functions*/
 void ADC_READ(U8 ADC_Configured_Channels);
 void ADC_Channel_READ(U8 ADC_Channel);
+void ADC_Channel_0_CodeHandle(void);
+void ADC_Channel_1_CodeHandle(void);
+void ADC_Channel_2_CodeHandle(void);
+void ADC_Channel_3_CodeHandle(void);
+void ADC_Channel_4_CodeHandle(void);
 /*Misc Functions*/
 void on_board_LED_ON(void);
 void on_board_LED_OFF(void);
@@ -377,6 +382,32 @@ void ADC_Channel_READ(U8 ADC_Channel)
     GO_nDONE = 1;
 }
 
+void ADC_Channel_0_CodeHandle(void)
+{
+    POT_2_Value = ADRES;
+}
+
+void ADC_Channel_1_CodeHandle(void)
+{
+    POT_1_Value = ADRES;
+    CCPR2L = POT_1_Value;
+}
+
+void ADC_Channel_2_CodeHandle(void)
+{
+
+}
+
+void ADC_Channel_3_CodeHandle(void)
+{
+
+}
+
+void ADC_Channel_4_CodeHandle(void)
+{
+
+}
+
 void TIMER_0_TASK(void)
 {
     static U16 tick_count = 0;
@@ -422,24 +453,11 @@ void ADC_INTERRUPT_TASK(void)
     /*ADC Channel code selector*/
     switch(ADC_Channel_Selector)
     {
-        /*Code for channel 0 AN0*/
-        case 0: 
-            POT_2_Value = ADRES;
-            break;
-        /*Code for channel 1 AN1*/
-        case 1: 
-            POT_1_Value = ADRES;
-            CCPR2L = POT_1_Value;
-            break;
-        /*Code for channel 2 AN2*/
-        case 2: 
-            break;
-        /*Code for channel 3 AN3*/
-        case 3: 
-            break;
-        /*Code for channel 4 AN4*/
-        case 4:
-            break;
+        case 0: ADC_Channel_0_CodeHandle(); break; /*ADC Channel 0 Code*/
+        case 1: ADC_Channel_1_CodeHandle(); break; /*ADC Channel 1 Code*/
+        case 2: ADC_Channel_2_CodeHandle(); break; /*ADC Channel 2 Code*/
+        case 3: ADC_Channel_3_CodeHandle(); break; /*ADC Channel 3 Code*/
+        case 4: ADC_Channel_4_CodeHandle(); break; /*ADC Channel 4 Code*/
         /*Default*/
         default:
             break;
