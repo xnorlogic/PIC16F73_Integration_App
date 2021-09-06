@@ -50,6 +50,17 @@
 #define ADCON1_CONFIG_5 0x05 /*refere to page 84 of pic16f73 manual*/
 #define ADCON1_CONFIG_6 0x06 /*All Digital*/
 
+#define ADON_CONFIG_ON  0x01 /*A/D converter module On*/
+#define ADON_CONFIG_OFF 0x00 /*A/D converter module Off*/
+
+#define GO_nDONE_CONFIG_CONV_IN_PROGRESS      0x01 /*A/D converter module conversion in progress*/
+#define GO_nDONE_CONFIG_CONV_NOT_IN_PROGRESS  0x00 /*A/D converter module conversion not in progress*/
+
+#define ADC_DEFAULT_CHANNEL         0x00 /*A/D default channel*/
+#define ADC_CONFIG_CONVERSION_CLOCK 0x00 /*A/D conversion clock configuration, refere to page 83 of pic16f73 manual*/
+
+#define MAX_ADC_CHANNELS 2
+
 /*LCD IO*/
 #define RS RB5
 #define EN RA5
@@ -68,8 +79,6 @@
 
 #define LCD_CURSOR_1 1
 #define LCD_CURSOR_2 2
-
-#define MAX_ADC_CHANNELS 2
 
 #include "lcd.h"
 
@@ -155,6 +164,7 @@ void Loop(void){
     RB7 = 0;
     RB6 = 0;
     
+	/*Read the ADC module*/
     ADC_READ(MAX_ADC_CHANNELS);
     
     /*Display the EEPROM data on the LCD*/
@@ -162,12 +172,14 @@ void Loop(void){
     Lcd4_Set_Cursor (LCD_CURSOR_1, 0);
     Lcd4_Write_String(buffer);
     
-    /*Display the ADC Channel 1 data on the LCD*/
+    /*Display the ADC Channel 0 data on the LCD*/
+	/*Note: The Potentioneter 1 is mapped to the ADC channel 0*/
     utoa(buffer,POT_1_Value,10);
     Lcd4_Set_Cursor (LCD_CURSOR_2, 0);
     Lcd4_Write_String(buffer);
     
-    /*Display the ADC Channel 2 data on the LCD*/
+    /*Display the ADC Channel 1 data on the LCD*/
+	/*Note: The Potentioneter 2 is mapped to the ADC channel 1*/
     utoa(buffer,POT_2_Value,10);
     Lcd4_Set_Cursor (LCD_CURSOR_2, 4);
     Lcd4_Write_String(buffer);
@@ -205,16 +217,13 @@ void PORT_Config(U8 P_A, U8 P_B, U8 P_C){
 }
 
 void ADC_Config(void){
-    STATUS = BANK_1;
-    ADCON1 = ADCON1_CONFIG_4;
-    STATUS = BANK_0;  
-    ADON = 1;
-    GO_nDONE = 0;
-    CHS0 = 0;
-    CHS1 = 0;
-    CHS2 = 0;
-    ADCS0 = 0;
-    ADCS1 = 0;
+    STATUS   = BANK_1;
+    ADCON1   = ADCON1_CONFIG_4;
+    STATUS   = BANK_0;  
+    ADON     = ADON_CONFIG_ON;
+    GO_nDONE = GO_nDONE_CONFIG_CONV_NOT_IN_PROGRESS;
+    ADC_Channel_SELECT(ADC_DEFAULT_CHANNEL);
+    ADC_Channel_SetConvClock(ADC_CONFIG_CONVERSION_CLOCK);
 }
 
 void PWM_Config(void){
@@ -375,21 +384,37 @@ void ADC_READ(U8 ADC_Configured_Channels)
 void ADC_Channel_READ(U8 ADC_Channel)
 {
     /*select the ADC channel*/
-    CHS0 = (ADC_Channel & 0x01);
+    ADC_Channel_SELECT(ADC_Channel);
+    /*Initiate ADC conversion*/
+    GO_nDONE = GO_nDONE_CONFIG_CONV_IN_PROGRESS;;
+}
+
+void ADC_Channel_SELECT(U8 ADC_Channel)
+{
+	/*Set ADC bit configuration based on the channel input*/
+	CHS0 = (ADC_Channel & 0x01);
     CHS1 = (ADC_Channel & 0x02) >> 1; 
     CHS2 = (ADC_Channel & 0x04) >> 2;
-    /*Initiate ADC conversion*/
-    GO_nDONE = 1;
+}
+
+void ADC_Channel_SetConvClock(U8 ADC_ClockSet)
+{
+	/*Set ADC bit configuration based on the clock input*/
+	ADCS0 = (ADC_ClockSet & 0x01);
+    ADCS1 = (ADC_ClockSet & 0x02) >> 1; 
 }
 
 void ADC_Channel_0_CodeHandle(void)
 {
-    POT_2_Value = ADRES;
+	/*Set value of potentiometr 1 to the resulting ADC*/
+    POT_1_Value = ADRES;
 }
 
 void ADC_Channel_1_CodeHandle(void)
 {
-    POT_1_Value = ADRES;
+	/*Set value of potentiometr 1 to the resulting ADC*/
+    POT_2_Value = ADRES;
+	/*Set value of PWM 2 Output to the value of Potentiometer 1*/
     CCPR2L = POT_1_Value;
 }
 
