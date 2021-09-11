@@ -83,7 +83,7 @@
 #include "lcd.h"
 
 /*Global VAriables------------------------------------------------------------*/
-U16 external_interrupt_cnt;
+U16 cycle_start_cnt;
 U16 address = 43690;
 U16 EEPROM_DATA;
 U8  POT_1_Value;
@@ -141,7 +141,12 @@ void main(void) {
     
     /*Read the EEPROM and initialize the counter*/
     EEPROM_DATA = EEPROM_25LC1024_READ(address);
-    external_interrupt_cnt = EEPROM_DATA;
+    cycle_start_cnt = EEPROM_DATA;
+    /*Increment the start cycle counter*/
+    cycle_start_cnt = cycle_start_cnt + 1;
+    /*Write the counter to the EEPROM*/
+    EEPROM_25LC1024_WRITE_EN();
+    EEPROM_25LC1024_WRITE(address,(U8)cycle_start_cnt);
     
     /*Initial LCD MEssage*/
     LCD_Reset("READY",LCD_CURSOR_1);
@@ -458,18 +463,8 @@ void TIMER_1_TASK(void)
 void EXTERNAL_INTERRUPT_TASK(void)
 {
     RB7 = 1;
-    /*increment counter for external interrupt*/
-    if(external_interrupt_cnt<255)
-    {
-        ++external_interrupt_cnt;
-    }
-    else
-    {
-        external_interrupt_cnt = 0;
-    }
-    /*Write the new counter to the EEPROM*/
-    EEPROM_25LC1024_WRITE_EN();
-    EEPROM_25LC1024_WRITE(address,(U8)external_interrupt_cnt);
+    /*External interrupt stuff*/
+    
 }
 
 void ADC_INTERRUPT_TASK(void)
