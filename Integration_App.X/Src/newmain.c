@@ -102,6 +102,8 @@ void TIMER_1_Config(void);
 void Interrupts_Config(void);
 void SPI_Config(void);
 void ADC_Config(void);
+void ADC_Channel_SetConvClock(U8 ADC_ClockSet);
+void ADC_Channel_SELECT(U8 ADC_Channel);
 /*SPI Functions*/
 U8 SPI_transfer(U8 data);
 void EEPROM_25LC1024_WRITE_EN(void);
